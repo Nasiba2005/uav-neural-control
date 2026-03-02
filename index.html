@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UAV Neural Control — Sayran (Almaty)</title>
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#101a33;
+      --panel2:#0f1730;
+      --text:#e9eefc;
+      --muted:#a9b4d6;
+      --line:#25325c;
+      --good:#4ade80;
+      --warn:#fbbf24;
+      --bad:#fb7185;
+      --accent:#60a5fa;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 15% 10%, #18285a 0%, var(--bg) 50%, #070a16 100%);
+      color:var(--text);
+    }
+    header{
+      padding:18px 18px 0;
+      max-width:1200px;
+      margin:0 auto;
+    }
+    .topbar{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .brand{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .logo{
+      width:34px;height:34px;border-radius:10px;
+      background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 60%, #34d399 120%);
+      box-shadow: var(--shadow);
+    }
+    h1{
+      margin:0;
+      font-size:18px;
+      letter-spacing:.2px;
+      font-weight:650;
+    }
+    .sub{
+      margin:3px 0 0;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .tabs{
+      display:flex; flex-wrap:wrap;
+      gap:8px;
+      margin-top:14px;
+    }
+    .tab{
+      border:1px solid var(--line);
+      background: rgba(16,26,51,.65);
+      color:var(--muted);
+      padding:8px 10px;
+      border-radius:999px;
+      cursor:pointer;
+      font-size:12px;
+      user-select:none;
+      transition: .15s ease;
+    }
+    .tab.active{
+      color:var(--text);
+      border-color: rgba(96,165,250,.8);
+      box-shadow: 0 0 0 3px rgba(96,165,250,.15);
+      background: rgba(16,26,51,.9);
+    }
+
+    main{
+      max-width:1200px;
+      margin:16px auto 26px;
+      padding:0 18px 24px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap:14px;
+      align-items:stretch;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(16,26,51,.92), rgba(14,20,41,.92));
+      border:1px solid rgba(37,50,92,.9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card h2{
+      margin:0;
+      padding:14px 14px 10px;
+      font-size:14px;
+      font-weight:650;
+      border-bottom:1px solid rgba(37,50,92,.8);
+      background: rgba(16,26,51,.35);
+    }
+    .card .content{
+      padding:14px;
+    }
+
+    #map{
+      width:100%;
+      height: 520px;
+      border-radius: 14px;
+      overflow:hidden;
+      border:1px solid rgba(37,50,92,.9);
+    }
+    @media (max-width:980px){
+      #map{height: 440px;}
+    }
+
+    .kv{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .kbox{
+      padding:10px;
+      border-radius: 12px;
+      background: rgba(15,23,48,.7);
+      border:1px solid rgba(37,50,92,.8);
+    }
+    .kbox .k{font-size:11px;color:var(--muted)}
+    .kbox .v{font-size:14px;margin-top:4px;font-weight:650}
+
+    .controls{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .row{
+      display:flex; gap:8px; flex-wrap:wrap;
+      align-items:center;
+    }
+    button{
+      border:1px solid rgba(37,50,92,.95);
+      background: rgba(15,23,48,.85);
+      color:var(--text);
+      padding:9px 11px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-size:12px;
+      transition:.15s ease;
+    }
+    button:hover{transform: translateY(-1px); border-color: rgba(96,165,250,.8)}
+    button.primary{
+      background: linear-gradient(135deg, rgba(96,165,250,.95), rgba(167,139,250,.85));
+      border-color: rgba(96,165,250,.8);
+      color:#081028;
+      font-weight:700;
+    }
+    button.good{
+      background: rgba(74,222,128,.12);
+      border-color: rgba(74,222,128,.5);
+    }
+    button.warn{
+      background: rgba(251,191,36,.12);
+      border-color: rgba(251,191,36,.5);
+    }
+
+    .slider{
+      display:grid;
+      grid-template-columns: 110px 1fr 56px;
+      gap:10px;
+      align-items:center;
+      padding:10px;
+      border-radius: 12px;
+      background: rgba(15,23,48,.7);
+      border:1px solid rgba(37,50,92,.8);
+    }
+    .slider label{font-size:12px;color:var(--muted)}
+    .slider output{font-size:12px;color:var(--text); text-align:right}
+    input[type="range"]{width:100%}
+
+    .twocharts{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width:980px){
+      .twocharts{grid-template-columns:1fr}
+    }
+    canvas{
+      width:100% !important;
+      height:260px !important;
+      background: rgba(15,23,48,.45);
+      border:1px solid rgba(37,50,92,.8);
+      border-radius: 14px;
+      padding:8px;
+    }
+
+    .page{display:none}
+    .page.active{display:block}
+
+    .note{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.55;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid rgba(37,50,92,.85);
+      background: rgba(15,23,48,.7);
+      font-size:12px; color:var(--muted);
+    }
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--accent)}
+    .dot.good{background:var(--good)}
+    .dot.bad{background:var(--bad)}
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>UAV Neural Control — Sayran (Almaty)</h1>
+        <div class="sub">Демо ИСУ: моделирование траектории + MLP (2 скрытых слоя) + визуализация на карте</div>
+      </div>
+    </div>
+    <div class="pill"><span class="dot"></span><span id="statusText">Готово к запуску</span></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-page="overview">Overview</div>
+    <div class="tab" data-page="mapuav">Map & UAV</div>
+    <div class="tab" data-page="neural">Neural Model</div>
+    <div class="tab" data-page="training">Training</div>
+    <div class="tab" data-page="results">Results</div>
+    <div class="tab" data-page="about">About</div>
+  </div>
+</header>
+
+<main>
+  <!-- OVERVIEW -->
+  <section class="page active" id="overview">
+    <div class="card">
+      <h2>Кратко о работе</h2>
+      <div class="content">
+        <p class="note">
+          Цель: показать применение нейронной сети в интеллектуальной системе управления (ИСУ) БПЛА.
+          Веб-приложение моделирует полёт над водоёмом Сайран (Алматы) и сравнивает траекторию:
+          <span class="pill"><span class="dot bad"></span>без нейросети</span>
+          vs
+          <span class="pill"><span class="dot good"></span>с нейросетью (MLP)</span>.
+        </p>
+        <div class="twocharts" style="margin-top:12px;">
+          <div class="card">
+            <h2>Что демонстрируется</h2>
+            <div class="content">
+              <ul class="note" style="margin:0; padding-left:18px;">
+                <li>Спутниковая карта + область исследования (Сайран).</li>
+                <li>Модель динамики БПЛА: <b>x,y</b>, скорость <b>v</b>, курс <b>ψ</b>, высота <b>Z</b>.</li>
+                <li>Ветер как возмущение среды (динамическая среда).</li>
+                <li>MLP учится выдавать корректировки управления для компенсации ветра.</li>
+                <li>Графики: loss обучения и ошибка траектории во времени.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Как получить максимальный балл</h2>
+            <div class="content">
+              <ul class="note" style="margin:0; padding-left:18px;">
+                <li>Нажми <b>Train model</b> → покажи падение loss.</li>
+                <li>Нажми <b>Start</b> → покажи две траектории на карте.</li>
+                <li>Покрути <b>Wind</b> → покажи, что без NN уводит сильнее, а с NN стабилизируется.</li>
+                <li>На вкладке <b>About</b> есть архитектура и объяснение.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAP & UAV -->
+  <section class="page" id="mapuav">
+    <div class="grid">
+      <div class="card">
+        <h2>Карта и траектория БПЛА (Сайран)</h2>
+        <div class="content">
+          <div id="map"></div>
+          <p class="note" style="margin:10px 2px 0;">
+            Линия <span class="pill"><span class="dot bad"></span>без NN</span> и
+            <span class="pill"><span class="dot good"></span>с NN</span> строятся одновременно.
+            Маркер показывает текущее положение “умного” БПЛА.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Панель мониторинга</h2>
+        <div class="content">
+          <div class="kv" style="margin-bottom:12px;">
+            <div class="kbox"><div class="k">Lat, Lon</div><div class="v" id="latlon">—</div></div>
+            <div class="kbox"><div class="k">Высота Z (м)</div><div class="v" id="alt">—</div></div>
+            <div class="kbox"><div class="k">Скорость v</div><div class="v" id="speed">—</div></div>
+            <div class="kbox"><div class="k">Курс ψ (deg)</div><div class="v" id="heading">—</div></div>
+            <div class="kbox"><div class="k">Ветер (wx, wy)</div><div class="v" id="wind">—</div></div>
+            <div class="kbox"><div class="k">Ошибка (м)</div><div class="v" id="err">—</div></div>
+          </div>
+
+          <div class="controls">
+            <div class="row">
+              <button class="primary" id="btnStart">Start</button>
+              <button id="btnPause" class="warn">Pause</button>
+              <button id="btnReset">Reset</button>
+            </div>
+            <div class="row">
+              <button id="btnTrain" class="good">Train model</button>
+              <button id="btnDemoWind">Demo: Strong wind</button>
+            </div>
+
+            <div class="slider">
+              <label for="slSpeed">Speed</label>
+              <input id="slSpeed" type="range" min="6" max="22" step="1" value="12" />
+              <output id="outSpeed">12</output>
+            </div>
+
+            <div class="slider">
+              <label for="slWind">Wind</label>
+              <input id="slWind" type="range" min="0" max="10" step="1" value="3" />
+              <output id="outWind">3</output>
+            </div>
+
+            <div class="slider">
+              <label for="slNoise">Sensor noise</label>
+              <input id="slNoise" type="range" min="0" max="5" step="1" value="1" />
+              <output id="outNoise">1</output>
+            </div>
+
+            <p class="note" style="margin:2px 2px 0;">
+              Подсказка: для защиты сначала нажми <b>Train model</b>, потом <b>Start</b>, затем увеличь <b>Wind</b>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEURAL MODEL -->
+  <section class="page" id="neural">
+    <div class="card">
+      <h2>Нейронная модель управления (MLP)</h2>
+      <div class="content">
+        <div class="twocharts">
+          <div>
+            <p class="note" style="margin-top:0;">
+              Используется MLP с 2 скрытыми слоями (tanh). Модель учится выдавать корректировки управления:
+              <b>dψ</b> (поворот) и <b>dv</b> (изменение скорости) для компенсации ветра.
+            </p>
+            <div class="card" style="margin-top:12px;">
+              <h2>Вход / Выход</h2>
+              <div class="content">
+                <div class="note">
+                  <b>Вход:</b> x, y, v, ψ, wx, wy (+ шум)<br/>
+                  <b>Выход:</b> dψ, dv<br/><br/>
+                  <b>Идея:</b> без NN базовый регулятор “держит” траекторию, но ветер уводит.
+                  NN учится добавлять поправку, чтобы уменьшить ошибку.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <h2>Параметры сети</h2>
+              <div class="content">
+                <div class="note">
+                  Архитектура: <b>6 → 32 → 16 → 2</b><br/>
+                  Активации: tanh, tanh, linear<br/>
+                  Оптимизация: SGD (градиентный спуск)<br/>
+                  Loss: MSE (среднеквадратичная ошибка)<br/><br/>
+                  Статус обучения: <b id="trainState">не обучено</b>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:12px;">
+              <h2>Как формируются данные обучения</h2>
+              <div class="content">
+                <div class="note">
+                  Генерируются случайные состояния (x,y,v,ψ) и ветер (wx,wy).<br/>
+                  “Целевое” управление (teacher) рассчитывается простым правилом:
+                  компенсировать ветер и уменьшить отклонение от опорной траектории.<br/><br/>
+                  NN учится приближать это правило и потом используется онлайн.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="note" style="margin-top:14px;">
+          ⚠️ Это учебная демонстрация: цель — показать принцип ИСУ и влияние нейросети на устойчивость и точность управления.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRAINING -->
+  <section class="page" id="training">
+    <div class="grid">
+      <div class="card">
+        <h2>График обучения (Loss по эпохам)</h2>
+        <div class="content">
+          <canvas id="lossChart"></canvas>
+          <p class="note" style="margin:10px 2px 0;">
+            Для защиты: покажи, что loss уменьшается → значит модель действительно “учится”.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Управление обучением</h2>
+        <div class="content">
+          <div class="row">
+            <button class="good" id="btnTrain2">Train model</button>
+            <button id="btnResetModel">Reset model</button>
+          </div>
+          <div class="slider" style="margin-top:10px;">
+            <label for="slEpochs">Epochs</label>
+            <input id="slEpochs" type="range" min="20" max="200" step="10" value="80" />
+            <output id="outEpochs">80</output>
+          </div>
+          <div class="slider">
+            <label for="slLR">Learning rate</label>
+            <input id="slLR" type="range" min="1" max="30" step="1" value="10" />
+            <output id="outLR">0.010</output>
+          </div>
+
+          <div class="note" style="margin-top:10px;">
+            Рекомендация: epochs 60–120, lr 0.008–0.015.<br/>
+            Если loss “скачет”, уменьши lr.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="page" id="results">
+    <div class="card">
+      <h2>Результаты: ошибка траектории и сравнение режимов</h2>
+      <div class="content">
+        <div class="twocharts">
+          <div>
+            <canvas id="errChart"></canvas>
+            <p class="note" style="margin:10px 2px 0;">
+              Ошибка = расстояние (в метрах) между текущей точкой и ближайшей точкой на опорной траектории.
+            </p>
+          </div>
+          <div>
+            <div class="card">
+              <h2>Ключевой вывод</h2>
+              <div class="content">
+                <div class="note">
+                  При увеличении ветра:
+                  <ul style="margin:8px 0 0; padding-left:18px;">
+                    <li><b>без NN</b> возрастает увод и ошибка траектории;</li>
+                    <li><b>с NN</b> ошибка растёт слабее, траектория стабильнее.</li>
+                  </ul>
+                  Это демонстрирует, что нейросеть может повысить точность и устойчивость управления в динамической среде.
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:12px;">
+              <h2>Что ответить преподавателю</h2>
+              <div class="content">
+                <div class="note">
+                  <b>Почему нейросеть?</b> Она аппроксимирует нелинейную зависимость “состояние → управление” и адаптирует управление под возмущения.<br/><br/>
+                  <b>Что за проценты точности?</b> Можно сравнить среднюю ошибку:
+                  (meanErrNoNN − meanErrNN)/meanErrNoNN × 100%.
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <p class="note" style="margin-top:14px;">
+          Открой вкладку <b>Map & UAV</b> и покажи траектории на карте — это самый “убедительный” момент защиты.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="page" id="about">
+    <div class="card">
+      <h2>Архитектура и соответствие заданию</h2>
+      <div class="content">
+        <p class="note">
+          Архитектурная схема (как в задании):<br/>
+          <b>RS → (CNN) → карта признаков → IMS → сигнал управления БПЛА</b><br/><br/>
+          В этом демо:
+          <ul class="note" style="margin:8px 0 0; padding-left:18px;">
+            <li><b>RS/карта</b> — спутниковый слой Esri на Leaflet, область Сайран (Алматы).</li>
+            <li><b>Модель БПЛА</b> — динамика по (x,y,v,ψ) + высота Z, ветер как возмущение.</li>
+            <li><b>Нейронная модель</b> — MLP (6→32→16→2), обучается на синтетике в браузере.</li>
+            <li><b>Веб-интерфейс</b> — карта, панель мониторинга, графики обучения и ошибки.</li>
+          </ul>
+        </p>
+
+        <div class="card" style="margin-top:12px;">
+          <h2>Что можно добавить (если спросят “расширенную версию”)</h2>
+          <div class="content">
+            <div class="note">
+              1) LSTM прогноз следующей точки траектории<br/>
+              2) EKF + NN (фильтрация шума датчиков)<br/>
+              3) YOLO обнаружение объектов и предотвращение столкновений<br/>
+              4) Реальные GeoJSON траектории и телеметрия
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* ==============================
+   0) Утилиты
+================================ */
+function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+function randn(){ // нормальное распределение (Box-Muller)
+  let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function deg2rad(d){ return d*Math.PI/180; }
+function rad2deg(r){ return r*180/Math.PI; }
+
+// Примерная конвертация "метры -> градусы" для Алматы
+const METERS_PER_DEG_LAT = 111320; // примерно
+function metersToDegLat(m){ return m / METERS_PER_DEG_LAT; }
+function metersToDegLon(m, latDeg){
+  const metersPerDegLon = METERS_PER_DEG_LAT * Math.cos(deg2rad(latDeg));
+  return m / metersPerDegLon;
+}
+
+/* ==============================
+   1) Вкладки (6 страниц)
+================================ */
+const tabs = document.getElementById('tabs');
+tabs.addEventListener('click', (e)=>{
+  const t = e.target.closest('.tab');
+  if(!t) return;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById(t.dataset.page).classList.add('active');
+
+  // Если пользователь впервые открыл страницу с картой — инициализируем map
+  if(t.dataset.page === 'mapuav' && !window.__mapReady){
+    initMap();
+  }
+});
+
+/* ==============================
+   2) Карта (Leaflet + Esri)
+================================ */
+let map, centerLat=43.247, centerLon=76.874; // Сайран (приблизительно)
+let markerNN, polyNoNN, polyNN, refPoly, areaCircle;
+
+function initMap(){
+  window.__mapReady = true;
+  map = L.map('map', { zoomControl:true }).setView([centerLat, centerLon], 14);
+
+  // Esri World Imagery
+  L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: 'Tiles © Esri' }
+  ).addTo(map);
+
+  // Область исследования — кружок вокруг центра (примерно)
+  areaCircle = L.circle([centerLat, centerLon], {
+    radius: 900,
+    color: '#60a5fa',
+    weight: 2,
+    fillColor: '#60a5fa',
+    fillOpacity: 0.08
+  }).addTo(map);
+
+  // Опорная траектория: окружность вокруг центра (как “облет водоёма”)
+  const ref = buildReferencePath();
+  refPoly = L.polyline(ref, { color:'#94a3b8', weight:2, opacity:.75, dashArray:'6 6' }).addTo(map);
+
+  polyNoNN = L.polyline([], { color:'#fb7185', weight:3, opacity:.9 }).addTo(map);
+  polyNN   = L.polyline([], { color:'#4ade80', weight:3, opacity:.9 }).addTo(map);
+
+  markerNN = L.circleMarker([centerLat, centerLon], {
+    radius: 7, color:'#4ade80', weight:2, fillColor:'#4ade80', fillOpacity:1
+  }).addTo(map);
+
+  map.fitBounds(areaCircle.getBounds().pad(0.3));
+}
+
+/* ==============================
+   3) Опорная траектория (круг)
+================================ */
+let refPath = [];
+function buildReferencePath(){
+  refPath = [];
+  const Rm = 520;            // радиус в метрах
+  const N = 240;
+  for(let i=0;i<N;i++){
+    const a = (2*Math.PI*i)/(N-1);
+    const dx = Rm * Math.cos(a);
+    const dy = Rm * Math.sin(a);
+    const lat = centerLat + metersToDegLat(dy);
+    const lon = centerLon + metersToDegLon(dx, centerLat);
+    refPath.push([lat, lon]);
+  }
+  return refPath;
+}
+function nearestRefPoint(lat, lon){
+  // простой поиск ближайшей точки опорного пути (N небольшой)
+  let best = 1e18, bestIdx=0;
+  for(let i=0;i<refPath.length;i++){
+    const d = distMeters(lat, lon, refPath[i][0], refPath[i][1]);
+    if(d < best){ best = d; bestIdx=i; }
+  }
+  return { idx: bestIdx, d: best, lat: refPath[bestIdx][0], lon: refPath[bestIdx][1] };
+}
+function distMeters(lat1, lon1, lat2, lon2){
+  // приближение: локально плоская поверхность
+  const dLat = (lat2-lat1) * METERS_PER_DEG_LAT;
+  const dLon = (lon2-lon1) * METERS_PER_DEG_LAT * Math.cos(deg2rad((lat1+lat2)/2));
+  return Math.sqrt(dLat*dLat + dLon*dLon);
+}
+
+/* ==============================
+   4) Динамика БПЛА
+   x_{t+1}=x_t + v*cos(ψ)*dt (+ wind)
+   y_{t+1}=y_t + v*sin(ψ)*dt (+ wind)
+   Здесь x,y — в метрах в локальной системе
+================================ */
+let running = false;
+let timer = null;
+
+const ui = {
+  statusText: document.getElementById('statusText'),
+  latlon: document.getElementById('latlon'),
+  alt: document.getElementById('alt'),
+  speed: document.getElementById('speed'),
+  heading: document.getElementById('heading'),
+  wind: document.getElementById('wind'),
+  err: document.getElementById('err'),
+
+  slSpeed: document.getElementById('slSpeed'),
+  outSpeed: document.getElementById('outSpeed'),
+  slWind: document.getElementById('slWind'),
+  outWind: document.getElementById('outWind'),
+  slNoise: document.getElementById('slNoise'),
+  outNoise: document.getElementById('outNoise'),
+
+  slEpochs: document.getElementById('slEpochs'),
+  outEpochs: document.getElementById('outEpochs'),
+  slLR: document.getElementById('slLR'),
+  outLR: document.getElementById('outLR'),
+
+  trainState: document.getElementById('trainState'),
+};
+
+ui.slSpeed.addEventListener('input', ()=> ui.outSpeed.value = ui.slSpeed.value);
+ui.slWind.addEventListener('input', ()=> ui.outWind.value = ui.slWind.value);
+ui.slNoise.addEventListener('input', ()=> ui.outNoise.value = ui.slNoise.value);
+ui.slEpochs.addEventListener('input', ()=> ui.outEpochs.value = ui.slEpochs.value);
+ui.slLR.addEventListener('input', ()=> ui.outLR.value = (ui.slLR.value/1000).toFixed(3));
+ui.outSpeed.value = ui.slSpeed.value;
+ui.outWind.value = ui.slWind.value;
+ui.outNoise.value = ui.slNoise.value;
+ui.outEpochs.value = ui.slEpochs.value;
+ui.outLR.value = (ui.slLR.value/1000).toFixed(3);
+
+// Состояния двух режимов: noNN и NN
+let stateNo = null, stateNN = null;
+
+// Локальная система координат (метры относительно центра)
+function latlonToLocalMeters(lat, lon){
+  const dx = distMeters(centerLat, centerLon, centerLat, lon) * Math.sign(lon-centerLon);
+  const dy = distMeters(centerLat, centerLon, lat, centerLon) * Math.sign(lat-centerLat);
+  return {x: dx, y: dy};
+}
+function localMetersToLatlon(x,y){
+  const lat = centerLat + metersToDegLat(y);
+  const lon = centerLon + metersToDegLon(x, centerLat);
+  return {lat, lon};
+}
+
+// Базовый регулятор: “тянуться” к ближайшей точке опорной траектории
+function baselineControl(lat, lon, v, psiRad){
+  const n = nearestRefPoint(lat, lon);
+  // вектор к целевой точке
+  const dx = distMeters(lat, lon, lat, n.lon) * Math.sign(n.lon-lon);
+  const dy = distMeters(lat, lon, n.lat, lon) * Math.sign(n.lat-lat);
+
+  const desired = Math.atan2(dy, dx); // желаемый курс
+  let dpsi = wrapAngle(desired - psiRad);
+  dpsi = clamp(dpsi, -0.18, 0.18); // ограничим поворот
+
+  // скорость чуть увеличиваем, если далеко
+  const dv = clamp((n.d - 60)/500, -0.6, 0.6);
+  return { dpsi, dv, err: n.d };
+}
+
+function wrapAngle(a){
+  while(a > Math.PI) a -= 2*Math.PI;
+  while(a < -Math.PI) a += 2*Math.PI;
+  return a;
+}
+
+// Ветер (м/с) в локальной системе: wx по X, wy по Y
+function currentWind(){
+  const s = Number(ui.slWind.value); // 0..10
+  // сделаем постоянный ветер + лёгкая пульсация
+  const wx = 0.7*s + 0.2*s*Math.sin(perfTime/1400);
+  const wy = 0.45*s + 0.2*s*Math.cos(perfTime/1600);
+  return {wx, wy};
+}
+
+// Шум датчика (метры)
+function noisyLatLon(lat, lon){
+  const noise = Number(ui.slNoise.value);
+  if(noise <= 0) return {lat, lon};
+  const dx = noise * randn();
+  const dy = noise * randn();
+  const p = latlonToLocalMeters(lat, lon);
+  const q = localMetersToLatlon(p.x+dx, p.y+dy);
+  return {lat: q.lat, lon: q.lon};
+}
+
+// Шаг симуляции
+let perfTime = 0;
+const dt = 0.22; // сек
+function stepSim(){
+  perfTime += 35; // для пульсаций
+
+  const vBase = Number(ui.slSpeed.value);
+
+  const w = currentWind();
+  const Z = 80 + 15*Math.sin(perfTime/2000); // “высота” просто для телеметрии
+
+  // --- NO NN ---
+  {
+    const s = stateNo;
+    const sensed = noisyLatLon(s.lat, s.lon);
+    const u = baselineControl(sensed.lat, sensed.lon, s.v, s.psi);
+
+    s.psi = wrapAngle(s.psi + u.dpsi);
+    s.v = clamp(s.v + u.dv, 4, 26);
+
+    // движение (м/с) + ветер как добавка
+    const vx = s.v*Math.cos(s.psi) + w.wx;
+    const vy = s.v*Math.sin(s.psi) + w.wy;
+
+    // интегрирование
+    const p = latlonToLocalMeters(s.lat, s.lon);
+    const p2 = { x: p.x + vx*dt, y: p.y + vy*dt };
+    const ll = localMetersToLatlon(p2.x, p2.y);
+    s.lat = ll.lat; s.lon = ll.lon;
+    s.err = u.err;
+    s.Z = Z;
+  }
+
+  // --- WITH NN ---
+  {
+    const s = stateNN;
+    const sensed = noisyLatLon(s.lat, s.lon);
+    const base = baselineControl(sensed.lat, sensed.lon, s.v, s.psi);
+
+    // нейросеть выдаёт поправки к управлению
+    let dpsiNN = 0, dvNN = 0;
+    if(model.trained){
+      const x = [
+        normPosX(latlonToLocalMeters(sensed.lat, sensed.lon).x),
+        normPosY(latlonToLocalMeters(sensed.lat, sensed.lon).y),
+        normV(s.v),
+        normPsi(s.psi),
+        normW(w.wx),
+        normW(w.wy)
+      ];
+      const y = model.forward(x); // [dpsi, dv] в нормализованном виде
+      dpsiNN = denormDpsi(y[0]);
+      dvNN   = denormDv(y[1]);
+    }
+
+    const dpsi = clamp(base.dpsi + dpsiNN, -0.22, 0.22);
+    const dv   = clamp(base.dv   + dvNN,   -0.9,  0.9);
+
+    s.psi = wrapAngle(s.psi + dpsi);
+    s.v = clamp((vBase*0.4 + s.v*0.6) + dv, 4, 26);
+
+    const vx = s.v*Math.cos(s.psi) + w.wx;
+    const vy = s.v*Math.sin(s.psi) + w.wy;
+
+    const p = latlonToLocalMeters(s.lat, s.lon);
+    const p2 = { x: p.x + vx*dt, y: p.y + vy*dt };
+    const ll = localMetersToLatlon(p2.x, p2.y);
+    s.lat = ll.lat; s.lon = ll.lon;
+    s.err = base.err;
+    s.Z = Z;
+  }
+
+  // Обновляем визуализацию
+  updateUIandMap();
+}
+
+/* ==============================
+   5) Визуализация на карте и UI
+================================ */
+let errSeriesNo = [], errSeriesNN = [], tSeries = [];
+let stepCount = 0;
+const MAX_POINTS = 260;
+
+function updateUIandMap(){
+  stepCount++;
+
+  // графики ошибки (сравним текущие ошибки)
+  const t = stepCount*dt;
+  tSeries.push(t);
+  errSeriesNo.push(stateNo.err);
+  errSeriesNN.push(stateNN.err);
+  if(tSeries.length > MAX_POINTS){
+    tSeries.shift(); errSeriesNo.shift(); errSeriesNN.shift();
+  }
+  updateErrChart();
+
+  // карта
+  if(map){
+    const ptsNo = polyNoNN.getLatLngs();
+    const ptsNN = polyNN.getLatLngs();
+    ptsNo.push([stateNo.lat, stateNo.lon]);
+    ptsNN.push([stateNN.lat, stateNN.lon]);
+
+    if(ptsNo.length > MAX_POINTS) ptsNo.shift();
+    if(ptsNN.length > MAX_POINTS) ptsNN.shift();
+
+    polyNoNN.setLatLngs(ptsNo);
+    polyNN.setLatLngs(ptsNN);
+
+    markerNN.setLatLng([stateNN.lat, stateNN.lon]);
+  }
+
+  // телеметрия
+  ui.latlon.textContent = `${stateNN.lat.toFixed(6)}, ${stateNN.lon.toFixed(6)}`;
+  ui.alt.textContent = `${stateNN.Z.toFixed(1)}`;
+  ui.speed.textContent = `${stateNN.v.toFixed(2)} м/с`;
+  ui.heading.textContent = `${rad2deg(stateNN.psi).toFixed(1)}°`;
+
+  const w = currentWind();
+  ui.wind.textContent = `${w.wx.toFixed(2)}, ${w.wy.toFixed(2)} м/с`;
+
+  // “ошибка” показываем для NN (как ключевой режим)
+  ui.err.textContent = `${stateNN.err.toFixed(1)}`;
+
+  // статус
+  ui.statusText.textContent = running ? 'Симуляция запущена' : 'Пауза / готово';
+}
+
+/* ==============================
+   6) Графики (Chart.js)
+================================ */
+let lossChart, errChart;
+
+function makeCharts(){
+  // LOSS
+  const ctxL = document.getElementById('lossChart');
+  lossChart = new Chart(ctxL, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Loss (MSE)',
+        data: [],
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.25
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      scales: {
+        x: { title: { display:true, text:'Epoch' }, ticks:{ maxTicksLimit: 8 } },
+        y: { title: { display:true, text:'Loss' }, beginAtZero: true }
+      }
+    }
+  });
+
+  // ERROR
+  const ctxE = document.getElementById('errChart');
+  errChart = new Chart(ctxE, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Error (no NN)', data: [], borderWidth:2, pointRadius:0, tension:0.25 },
+        { label: 'Error (with NN)', data: [], borderWidth:2, pointRadius:0, tension:0.25 },
+      ]
+    },
+    options: {
+      responsive:true,
+      animation:false,
+      scales:{
+        x:{ title:{display:true, text:'t (s)'}, ticks:{ maxTicksLimit: 8 }},
+        y:{ title:{display:true, text:'Error (m)'}, beginAtZero:true }
+      }
+    }
+  });
+}
+
+function pushLoss(epoch, loss){
+  lossChart.data.labels.push(epoch);
+  lossChart.data.datasets[0].data.push(loss);
+  // ограничим длину
+  if(lossChart.data.labels.length > 200){
+    lossChart.data.labels.shift();
+    lossChart.data.datasets[0].data.shift();
+  }
+  lossChart.update();
+}
+
+function updateErrChart(){
+  if(!errChart) return;
+  errChart.data.labels = tSeries.map(x=>x.toFixed(1));
+  errChart.data.datasets[0].data = errSeriesNo;
+  errChart.data.datasets[1].data = errSeriesNN;
+  errChart.update();
+}
+
+/* ==============================
+   7) MLP (6 → 32 → 16 → 2)
+   Реализация "вручную" (SGD)
+================================ */
+function zeros(n){ return Array(n).fill(0); }
+function randMat(r,c,scale=0.15){
+  const m = [];
+  for(let i=0;i<r;i++){
+    const row=[];
+    for(let j=0;j<c;j++){
+      row.push((Math.random()*2-1)*scale);
+    }
+    m.push(row);
+  }
+  return m;
+}
+function matVec(W, x){
+  const y = zeros(W.length);
+  for(let i=0;i<W.length;i++){
+    let s=0;
+    for(let j=0;j<x.length;j++) s += W[i][j]*x[j];
+    y[i]=s;
+  }
+  return y;
+}
+function addVec(a,b){
+  const y=zeros(a.length);
+  for(let i=0;i<a.length;i++) y[i]=a[i]+b[i];
+  return y;
+}
+function tanhVec(a){
+  const y=zeros(a.length);
+  for(let i=0;i<a.length;i++) y[i]=Math.tanh(a[i]);
+  return y;
+}
+function dtanhFromTanh(t){
+  // derivative of tanh using tanh output
+  const y=zeros(t.length);
+  for(let i=0;i<t.length;i++) y[i]=1 - t[i]*t[i];
+  return y;
+}
+
+// Нормализации (чтобы обучение было стабильнее)
+function normPosX(x){ return clamp(x/800, -1, 1); }
+function normPosY(y){ return clamp(y/800, -1, 1); }
+function normV(v){ return clamp((v-12)/12, -1, 1); }
+function normPsi(psi){ return clamp(psi/Math.PI, -1, 1); }
+function normW(w){ return clamp(w/12, -1, 1); }
+
+function normDpsi(d){ return clamp(d/0.22, -1, 1); }
+function normDv(d){ return clamp(d/1.0, -1, 1); }
+function denormDpsi(n){ return clamp(n*0.22, -0.22, 0.22); }
+function denormDv(n){ return clamp(n*1.0, -1.0, 1.0); }
+
+// Модель
+const model = {
+  W1: randMat(32, 6), b1: zeros(32),
+  W2: randMat(16, 32), b2: zeros(16),
+  W3: randMat(2, 16),  b3: zeros(2),
+  trained: false,
+
+  forward(x){
+    const z1 = addVec(matVec(this.W1, x), this.b1);
+    const a1 = tanhVec(z1);
+    const z2 = addVec(matVec(this.W2, a1), this.b2);
+    const a2 = tanhVec(z2);
+    const z3 = addVec(matVec(this.W3, a2), this.b3); // linear
+    return z3;
+  },
+
+  reset(){
+    this.W1 = randMat(32,6); this.b1=zeros(32);
+    this.W2 = randMat(16,32); this.b2=zeros(16);
+    this.W3 = randMat(2,16); this.b3=zeros(2);
+    this.trained=false;
+  }
+};
+
+// Один шаг SGD для одного примера (x,ytrue) с MSE
+function trainStep(x, ytrue, lr){
+  // forward store
+  const z1 = addVec(matVec(model.W1, x), model.b1);
+  const a1 = tanhVec(z1);
+  const z2 = addVec(matVec(model.W2, a1), model.b2);
+  const a2 = tanhVec(z2);
+  const yhat = addVec(matVec(model.W3, a2), model.b3);
+
+  // loss + grad at output
+  const dy = [ (yhat[0]-ytrue[0]), (yhat[1]-ytrue[1]) ]; // dL/dyhat for MSE up to factor
+
+  // grads for W3,b3
+  // dL/dW3[i][j] = dy[i] * a2[j]
+  for(let i=0;i<2;i++){
+    for(let j=0;j<16;j++){
+      model.W3[i][j] -= lr * (dy[i]*a2[j]);
+    }
+    model.b3[i] -= lr * dy[i];
+  }
+
+  // backprop to a2: da2[j] = sum_i W3[i][j]*dy[i]
+  const da2 = zeros(16);
+  for(let j=0;j<16;j++){
+    da2[j] = model.W3[0][j]*dy[0] + model.W3[1][j]*dy[1];
+  }
+  const dz2 = zeros(16);
+  const dt2 = dtanhFromTanh(a2);
+  for(let j=0;j<16;j++) dz2[j] = da2[j]*dt2[j];
+
+  // grads for W2,b2
+  for(let i=0;i<16;i++){
+    for(let j=0;j<32;j++){
+      model.W2[i][j] -= lr * (dz2[i]*a1[j]);
+    }
+    model.b2[i] -= lr * dz2[i];
+  }
+
+  // backprop to a1
+  const da1 = zeros(32);
+  for(let j=0;j<32;j++){
+    let s=0;
+    for(let i=0;i<16;i++) s += model.W2[i][j]*dz2[i];
+    da1[j]=s;
+  }
+  const dz1 = zeros(32);
+  const dt1 = dtanhFromTanh(a1);
+  for(let j=0;j<32;j++) dz1[j] = da1[j]*dt1[j];
+
+  // grads for W1,b1
+  for(let i=0;i<32;i++){
+    for(let j=0;j<6;j++){
+      model.W1[i][j] -= lr * (dz1[i]*x[j]);
+    }
+    model.b1[i] -= lr * dz1[i];
+  }
+
+  const loss = 0.5*(dy[0]*dy[0] + dy[1]*dy[1]);
+  return loss;
+}
+
+/* ==============================
+   8) Датасет для обучения (teacher rule)
+   Teacher: компенсировать ветер и тянуть к траектории
+================================ */
+function teacherRule(lat, lon, v, psi, wx, wy){
+  // базовое управление
+  const base = baselineControl(lat, lon, v, psi);
+
+  // идея компенсации ветра:
+  // если ветер по +X, нужно чуть повернуть так, чтобы компонента скорости по X уменьшилась
+  // и немного увеличить/уменьшить скорость.
+  // Это НЕ “идеальная физика”, но хорошо демонстрирует эффект и обучение.
+  const dpsiWind = clamp(-0.04*wx + 0.03*wy, -0.18, 0.18);
+  const dvWind   = clamp(-0.08*(wx*Math.cos(psi) + wy*Math.sin(psi)), -0.7, 0.7);
+
+  const dpsi = clamp(base.dpsi + dpsiWind, -0.22, 0.22);
+  const dv   = clamp(base.dv   + dvWind,   -1.0,  1.0);
+  return { dpsi, dv };
+}
+
+async function trainModel(){
+  if(!lossChart) makeCharts();
+
+  ui.statusText.textContent = 'Обучение модели...';
+  ui.trainState.textContent = 'обучается...';
+
+  const epochs = Number(ui.slEpochs.value);
+  const lr = Number(ui.slLR.value)/1000;
+
+  // данные: N примеров
+  const N = 1200;
+
+  // сброс графика loss
+  lossChart.data.labels = [];
+  lossChart.data.datasets[0].data = [];
+  lossChart.update();
+
+  // подготовим примеры
+  const X = [];
+  const Y = [];
+  for(let i=0;i<N;i++){
+    // случайная точка около круга
+    const a = Math.random()*2*Math.PI;
+    const r = 350 + 350*Math.random(); // 350..700m
+    const x = r*Math.cos(a);
+    const y = r*Math.sin(a);
+    const ll = localMetersToLatlon(x,y);
+
+    const v = 6 + 18*Math.random();
+    const psi = (Math.random()*2-1)*Math.PI;
+    const wx = (Math.random()*2-1)*8;
+    const wy = (Math.random()*2-1)*8;
+
+    // вход
+    const xin = [
+      normPosX(x),
+      normPosY(y),
+      normV(v),
+      normPsi(psi),
+      normW(wx),
+      normW(wy),
+    ];
+    // teacher output
+    const t = teacherRule(ll.lat, ll.lon, v, psi, wx, wy);
+    const yout = [ normDpsi(t.dpsi), normDv(t.dv) ];
+
+    X.push(xin); Y.push(yout);
+  }
+
+  // SGD по всем данным
+  for(let e=1; e<=epochs; e++){
+    let sum = 0;
+
+    // мини-перемешивание (простое)
+    for(let i=0;i<N;i++){
+      const k = (i*37 + e*19) % N; // псевдо-микс
+      sum += trainStep(X[k], Y[k], lr);
+    }
+
+    const avg = sum / N;
+    pushLoss(e, Number(avg.toFixed(6)));
+
+    // чтобы UI не “зависал”
+    if(e % 10 === 0) await new Promise(r=>setTimeout(r, 0));
+  }
+
+  model.trained = true;
+  ui.trainState.textContent = 'обучено ✅';
+  ui.statusText.textContent = 'Модель обучена. Запусти симуляцию.';
+}
+
+/* ==============================
+   9) Управление кнопками
+================================ */
+function resetSim(){
+  // стартовая точка — на опорной траектории
+  if(refPath.length === 0) buildReferencePath();
+
+  const start = refPath[20];
+  stateNo = {
+    lat: start[0], lon: start[1],
+    v: Number(ui.slSpeed.value),
+    psi: deg2rad(20),
+    Z: 80, err: 0
+  };
+  stateNN = {
+    lat: start[0], lon: start[1],
+    v: Number(ui.slSpeed.value),
+    psi: deg2rad(20),
+    Z: 80, err: 0
+  };
+
+  stepCount = 0;
+  perfTime = 0;
+  tSeries = []; errSeriesNo = []; errSeriesNN = [];
+
+  if(map){
+    polyNoNN.setLatLngs([]);
+    polyNN.setLatLngs([]);
+    markerNN.setLatLng([stateNN.lat, stateNN.lon]);
+  }
+  updateUIandMap();
+}
+
+function startSim(){
+  if(running) return;
+  running = true;
+  ui.statusText.textContent = 'Симуляция запущена';
+  timer = setInterval(stepSim, 120);
+}
+function pauseSim(){
+  running = false;
+  ui.statusText.textContent = 'Пауза / готово';
+  if(timer){ clearInterval(timer); timer=null; }
+}
+
+document.getElementById('btnStart').addEventListener('click', ()=>{
+  // если карта ещё не открыта — переключим на неё
+  document.querySelector('.tab[data-page="mapuav"]').click();
+  startSim();
+});
+document.getElementById('btnPause').addEventListener('click', pauseSim);
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  pauseSim();
+  resetSim();
+});
+
+document.getElementById('btnTrain').addEventListener('click', trainModel);
+document.getElementById('btnTrain2').addEventListener('click', trainModel);
+
+document.getElementById('btnResetModel').addEventListener('click', ()=>{
+  model.reset();
+  ui.trainState.textContent = 'не обучено';
+  ui.statusText.textContent = 'Модель сброшена';
+  if(lossChart){
+    lossChart.data.labels=[]; lossChart.data.datasets[0].data=[];
+    lossChart.update();
+  }
+});
+
+document.getElementById('btnDemoWind').addEventListener('click', ()=>{
+  ui.slWind.value = 9; ui.outWind.value = 9;
+  ui.statusText.textContent = 'Включён сильный ветер (Demo)';
+});
+
+/* ==============================
+   10) Инициализация
+================================ */
+makeCharts();
+buildReferencePath();
+resetSim();
+
+/* Чтобы пользователь видел, что “что-то есть”, при первом заходе
+   в mapuav — initMap() сделаем в табах. */
+</script>
+
+</body>
+</html>
